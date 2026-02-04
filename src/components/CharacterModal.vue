@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// Esta línea es la que soluciona los 5 errores. 
-// Le dice a TypeScript qué es "character" y qué contiene.
 defineProps<{
   character: {
     name: string;

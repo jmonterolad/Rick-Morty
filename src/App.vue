@@ -4,7 +4,6 @@ import SearchBar from './components/SearchBar.vue'
 import CharacterCard from './components/CharacterCard.vue'
 import CharacterModal from './components/CharacterModal.vue'
 
-// Intentamos recuperar datos de LocalStorage o usamos valores por defecto
 const searchQuery = ref(localStorage.getItem('rick_search') || '')
 const page = ref(Number(localStorage.getItem('rick_page')) || 1)
 
@@ -48,7 +47,6 @@ const updateSearch = (value) => {
   page.value = 1
 }
 
-// Guardar en LocalStorage cada vez que cambien searchQuery o page
 watch([searchQuery, page], () => {
   localStorage.setItem('rick_search', searchQuery.value)
   localStorage.setItem('rick_page', page.value.toString())
@@ -125,7 +123,6 @@ onMounted(() => {
 </template>
 
 <style>
-/* Animaciones de transición estándar (esto no da error) */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
