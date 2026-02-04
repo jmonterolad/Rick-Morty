@@ -1,19 +1,23 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import SearchBar from './components/SearchBar.vue'
+import FilterBar from './components/FilterBar.vue'
 import CharacterCard from './components/CharacterCard.vue'
 import CharacterModal from './components/CharacterModal.vue'
 
+// --- STATE MANAGEMENT (With LocalStorage) ---
 const searchQuery = ref(localStorage.getItem('rick_search') || '')
+const statusFilter = ref(localStorage.getItem('rick_status') || '')
+const genderFilter = ref(localStorage.getItem('rick_gender') || '')
 const page = ref(Number(localStorage.getItem('rick_page')) || 1)
 
-const characters = ref([])
+const characters = ref<any[]>([])
 const info = ref({ pages: 0, next: null, prev: null })
 const isLoading = ref(false)
-const selectedCharacter = ref(null)
-
+const selectedCharacter = ref<any>(null)
 const MAX_PAGES = 12
 
+// --- API FETCHING ---
 const fetchData = async () => {
   isLoading.value = true
   characters.value = [] 
@@ -21,6 +25,8 @@ const fetchData = async () => {
   try {
     const params = new URLSearchParams()
     if (searchQuery.value) params.append('name', searchQuery.value)
+    if (statusFilter.value) params.append('status', statusFilter.value)
+    if (genderFilter.value) params.append('gender', genderFilter.value)
     params.append('page', page.value.toString())
 
     const url = `https://rickandmortyapi.com/api/character/?${params.toString()}`
@@ -42,20 +48,32 @@ const fetchData = async () => {
   }
 }
 
-const updateSearch = (value) => {
+// --- LOGIC HANDLERS ---
+const updateSearch = (value: string) => {
   searchQuery.value = value
+  page.value = 1 // Reset to page 1 on search
+}
+
+// Reset page when filters change
+const handleFilterChange = () => {
   page.value = 1
 }
 
-watch([searchQuery, page], () => {
+// --- WATCHERS (Persistence & Auto-fetch) ---
+watch([searchQuery, statusFilter, genderFilter], () => {
   localStorage.setItem('rick_search', searchQuery.value)
+  localStorage.setItem('rick_status', statusFilter.value)
+  localStorage.setItem('rick_gender', genderFilter.value)
+  handleFilterChange()
+  fetchData()
+})
+
+watch(page, () => {
   localStorage.setItem('rick_page', page.value.toString())
   fetchData()
 })
 
-onMounted(() => {
-  fetchData()
-})
+onMounted(fetchData)
 </script>
 
 <template>
@@ -64,13 +82,19 @@ onMounted(() => {
       <h1 class="text-5xl md:text-6xl font-black mb-8 bg-gradient-to-r from-green-400 to-emerald-600 bg-clip-text text-transparent italic tracking-tighter">
         RICK AND MORTY
       </h1>
+      
       <SearchBar @search="updateSearch" />
+      
+      <FilterBar 
+        v-model:status="statusFilter" 
+        v-model:gender="genderFilter" 
+      />
     </header>
 
     <main class="max-w-7xl mx-auto px-6">
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-green-500 mb-4 shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
-        <p class="text-green-500 font-mono animate-pulse font-bold tracking-widest">SYNCING DIMENSIONS...</p>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-green-500 mb-4 shadow-[0_0_15px_rgba(34,197,94,0.3)]"></div>
+        <p class="text-green-500 font-mono animate-pulse font-bold tracking-widest">FILTERING REALITIES...</p>
       </div>
 
       <div v-else-if="characters.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -83,33 +107,39 @@ onMounted(() => {
       </div>
 
       <div v-else class="text-center py-20">
-        <p class="text-slate-500 text-xl font-mono">No life forms found here...</p>
+        <p class="text-slate-500 text-xl font-mono">No entities match these parameters...</p>
+        <button 
+          @click="() => { searchQuery=''; statusFilter=''; genderFilter=''; }" 
+          class="text-green-500 underline mt-4 hover:text-white transition-colors cursor-pointer"
+        >
+          Reset all filters
+        </button>
       </div>
     </main>
 
     <nav v-if="characters.length > 0" class="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-slate-900/90 backdrop-blur-md px-8 py-4 rounded-full border border-slate-700 shadow-2xl z-40 border-b-green-500/30">
-      
       <button 
         :disabled="!info.prev || isLoading" 
         @click="page--" 
-        class="text-green-500 disabled:text-slate-700 font-bold uppercase text-xs tracking-widest hover:scale-110 active:scale-95 transition-all"
+        class="text-green-500 disabled:text-slate-700 font-bold uppercase text-xs tracking-widest hover:scale-110 active:scale-95 transition-all cursor-pointer"
       >
         Prev
       </button>
 
       <div class="flex flex-col items-center min-w-[100px]">
         <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Portal Page</span>
-        <span class="text-lg font-black font-mono text-white tracking-tighter">{{ page }} / {{ Math.min(info.pages, MAX_PAGES) }}</span>
+        <span class="text-lg font-black font-mono text-white tracking-tighter">
+          {{ page }} / {{ Math.min(info.pages, MAX_PAGES) }}
+        </span>
       </div>
 
       <button 
         :disabled="!info.next || isLoading || page >= MAX_PAGES" 
         @click="page++" 
-        class="text-green-500 disabled:text-slate-700 font-bold uppercase text-xs tracking-widest hover:scale-110 active:scale-95 transition-all"
+        class="text-green-500 disabled:text-slate-700 font-bold uppercase text-xs tracking-widest hover:scale-110 active:scale-95 transition-all cursor-pointer"
       >
         Next
       </button>
-
     </nav>
 
     <Transition name="fade">
@@ -123,6 +153,7 @@ onMounted(() => {
 </template>
 
 <style>
+/* Transitions for Modal */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
